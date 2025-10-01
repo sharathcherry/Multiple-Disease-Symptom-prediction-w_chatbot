@@ -5,7 +5,6 @@ from streamlit_option_menu import option_menu
 import pickle
 from PIL import Image
 import numpy as np
-import plotly.figure_factory as ff
 from DiseaseModel import DiseaseModel
 from helper import prepare_symptoms_array
 import seaborn as sns
