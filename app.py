@@ -1,17 +1,10 @@
 import streamlit as st
-import plotly.express as px
 from openai import OpenAI
-from plotly.subplots import make_subplots
-import plotly.graph_objects as go
-import matplotlib.pyplot as plt
 import pandas as pd
 from streamlit_option_menu import option_menu
 import pickle
 from PIL import Image
 import numpy as np
-import plotly.figure_factory as ff
-from DiseaseModel import DiseaseModel
-from helper import prepare_symptoms_array
 import seaborn as sns
 import joblib
 import datetime
