@@ -13,7 +13,7 @@ import requests
 import json
 
 # NVIDIA API Configuration for LLM Integration
-NVIDIA_API_KEY = "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"  # Replace with your actual API key
+NVIDIA_API_KEY = "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"  # Replace with your actual API key
 
 # Initialize OpenAI client for NVIDIA
 client = OpenAI(
