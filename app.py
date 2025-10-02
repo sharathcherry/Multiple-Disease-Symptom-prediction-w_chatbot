@@ -5,8 +5,6 @@ from streamlit_option_menu import option_menu
 import pickle
 from PIL import Image
 import numpy as np
-from DiseaseModel import DiseaseModel
-from helper import prepare_symptoms_array
 import seaborn as sns
 import joblib
 import datetime
@@ -14,57 +12,6 @@ import time
 import requests
 import json
 
-# Dataset URLs and paths configuration
-DATASET_PATHS = {
-    'diabetes': 'https://www.kaggle.com/datasets/mathchi/diabetes-data-set/download',
-    'heart': 'https://www.kaggle.com/datasets/johnsmith88/heart-disease-dataset/download',
-    'parkinsons': 'https://www.kaggle .com/datasets/nidaguler/parkinsons-data-set/download',
-    'lung_cancer': 'https://www.kaggle.com/datasets/mysarahmadbhat/lung-cancer/download',
-    'breast_cancer': 'https://www.kaggle.com/datasets/uciml/breast-cancer-wisconsin-data/download',
-    'kidney': 'https://www.kaggle.com/datasets/mansoordaku/ckdisease/download',
-    'liver': 'https://www.kaggle.com/datasets/uciml/indian-liver-patient-records/download',
-    'hepatitis': 'https://www.kaggle.com/datasets/fedesoriano/hepatitis-c-dataset/download',
-    'alzheimers': 'https://www.kaggle.com/datasets/jboysen/mri-and-alzheimers/download',
-    'tuberculosis': 'https://www.kaggle.com/datasets/tbpredictiondataset/tb-prediction/download',
-    'malaria': 'https://www.kaggle.com/datasets/iarunava/cell-images-for-detecting-malaria/download',
-    'colorectal_cancer': 'https://www.kaggle.com/datasets/andrewmvd/colorectal-histology-mnist/download',
-    'prostate_cancer': 'https://www.kaggle.com/datasets/sajidsaifi/prostate-cancer/download',
-    'cervical_cancer': 'https://www.kaggle.com/datasets/loveall/cervical-cancer-risk-classification/download',
-    'asthma': 'https://www.kaggle.com/datasets/deepayanthakur/asthma-disease-prediction/download',
-    'copd': 'https://www.kaggle.com/datasets/prakharrathi25/copd-student-dataset/download',
-    'pneumonia': 'https://www.kaggle.com/datasets/paultimothymooney/chest-xray-pneumonia/download',
-    'epilepsy': 'https://www.kaggle.com/datasets/harunshimanto/epileptic-seizure-recognition/download',
-    'migraine': 'https://www.kaggle.com/datasets/weinoose/migraine-dataset/download',
-    'hiv': 'https://www.kaggle.com/datasets/aadarshvelu/aids-virus-infection-prediction/download',
-    'obesity': 'https://www.kaggle.com/datasets/ankurbajaj9/obesity-levels/download'
-}
-
-# Local dataset paths (after downloading)
-LOCAL_DATASET_PATHS = {
-    'diabetes': 'data/diabetes.csv',#done
-    'heart': 'data/heart.csv',#done
-    'parkinsons': 'data/parkinsons.csv',#done
-    'lung_cancer': 'data/lung_cancer.csv',#done
-    'breast_cancer': 'data/breast_cancer.csv',#done
-    'kidney': 'data/kidney_disease.csv',#done
-    'liver': 'data/indian_liver_patient.csv',#done
-    'hepatitis': 'data/hepatitis.csv',#done
-    'alzheimers': 'data/alzheimers.csv',
-    'tuberculosis': 'data/tuberculosis.csv',
-    'malaria': 'data/malaria.csv',
-    'colorectal_cancer': 'data/colorectal_cancer.csv',#done
-    'prostate_cancer': 'data/prostate_cancer.csv',#done
-    'cervical_cancer': 'data/cervical_cancer.csv',#done
-    'asthma': 'data/asthma.csv',
-    'copd': 'data/copd.csv',#done
-    'pneumonia': 'data/pneumonia.csv',
-    'epilepsy': 'data/epilepsy.csv',#done
-    'migraine': 'data/migraine.csv',
-    'hiv': 'data/hiv.csv',#done
-    'obesity': 'data/obesity.csv'#done
-}
-
-# NVIDIA API Configuration for LLM Integration
 # NVIDIA API Configuration for LLM Integration
 NVIDIA_API_KEY = "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"  # Replace with your actual API key
 
@@ -73,35 +20,6 @@ client = OpenAI(
     base_url="https://integrate.api.nvidia.com/v1",
     api_key=NVIDIA_API_KEY
 )
-
-
-# Load models
-try:
-    diabetes_model = joblib.load("models/diabetes_model.sav")
-    heart_model = joblib.load("models/heart_disease_model.sav")
-    parkinson_model = joblib.load("models/parkinsons_model.sav")
-    lung_cancer_model = joblib.load('models/lung_cancer_model.sav')
-    breast_cancer_model = joblib.load('models/breast_cancer.sav')
-    kidney = joblib.load('models/kidney_disease.sav')
-    hepatitis_model = joblib.load('models/hepititisc_model.sav')
-    liver_model = joblib.load('models/liver_model.sav')
-    
-    # Additional models for new diseases
-    alzheimers_model = joblib.load('models/alzheimers_model.sav')
-    epilepsy_model = joblib.load('models/epilepsy_model.sav')
-    migraine_model = joblib.load('models/migraine_model.sav')
-    tb_model = joblib.load('models/tuberculosis_model.sav')
-    hiv_model = joblib.load('models/hiv_model.sav')
-    malaria_model = joblib.load('models/malaria_model.sav')
-    colorectal_model = joblib.load('models/colorectal_model.sav')
-    prostate_model = joblib.load('models/prostate_model.sav')
-    cervical_model = joblib.load('models/cervical_model.sav')
-    asthma_model = joblib.load('models/asthma_model.sav')
-    copd_model = joblib.load('models/copd_model.sav')
-    pneumonia_model = joblib.load('models/pneumonia_model.sav')
-    obesity_model = joblib.load('models/obesity_model.sav')
-except:
-    st.warning("Some models are not loaded. Please ensure all model files are present.")
 
 # List to track failed models
 failed_models = []
@@ -220,8 +138,467 @@ else:
     # Optional: Success message if all loaded
     st.success("All models loaded successfully!")
 
+def generate_text_report(recommendations):
+    """Generate a text-based health report"""
+    report = f"""
+{'='*80}
+HEALTH MANAGEMENT PLAN
+{'='*80}
 
-# Function to call NVIDIA LLM for health recommendations
+Patient Name: {recommendations.get('name', 'N/A')}
+Condition: {recommendations.get('topic', 'N/A')}
+Report Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}
+
+{'='*80}
+DIETARY PLAN
+{'='*80}
+
+"""
+    
+    dietary = recommendations.get('dietary_plan', {})
+    if dietary:
+        report += f"\nDaily Nutritional Targets:\n"
+        report += f"- Calories: {dietary.get('daily_calories', 'Not specified')}\n"
+        report += f"- Protein: {dietary.get('daily_protein', 'Not specified')}\n"
+        report += f"- Carbohydrates: {dietary.get('daily_carbohydrates', 'Not specified')}\n"
+        report += f"- Fats: {dietary.get('daily_fats', 'Not specified')}\n"
+        report += f"- Fiber: {dietary.get('daily_fiber', 'Not specified')}\n"
+        report += f"- Water: {dietary.get('hydration', 'Not specified')}\n"
+        
+        report += f"\nFoods to Eat:\n"
+        for food in dietary.get('foods_to_eat', []):
+            report += f"- {food}\n"
+        
+        report += f"\nFoods to Avoid:\n"
+        for food in dietary.get('foods_to_avoid', []):
+            report += f"- {food}\n"
+    
+    report += f"\n{'='*80}\nMEDICATIONS\n{'='*80}\n\n"
+    
+    medications = recommendations.get('medications', {})
+    if medications:
+        for med in medications.get('medication_details', []):
+            report += f"\n{med.get('name', 'Medication')}:\n"
+            report += f"  Dosage: {med.get('dosage', 'N/A')}\n"
+            report += f"  Frequency: {med.get('frequency', 'N/A')}\n"
+            report += f"  Duration: {med.get('duration', 'N/A')}\n"
+    
+    report += f"\n{'='*80}\nDOCTOR VISITATION\n{'='*80}\n\n"
+    
+    doctor = recommendations.get('doctor_visitation', {})
+    if doctor:
+        report += f"Urgency: {doctor.get('urgency', 'N/A')}\n"
+        report += f"Specialist: {doctor.get('specialist_type', 'N/A')}\n"
+        report += f"Follow-up: {doctor.get('followup_schedule', 'N/A')}\n"
+    
+    report += f"\n{'='*80}\nPRECAUTIONS\n{'='*80}\n\n"
+    
+    precautions = recommendations.get('precautions', {})
+    if precautions:
+        report += "Lifestyle Changes:\n"
+        for change in precautions.get('lifestyle_changes', []):
+            report += f"- {change}\n"
+        
+        report += "\nWarning Signs:\n"
+        for sign in precautions.get('warning_signs', []):
+            report += f"- {sign}\n"
+    
+    report += f"\n{'='*80}\nEXERCISE RECOMMENDATIONS\n{'='*80}\n\n"
+    
+    exercise = recommendations.get('exercise_recommendations', {})
+    if exercise:
+        report += f"Duration: {exercise.get('duration', 'N/A')}\n"
+        report += f"Frequency: {exercise.get('frequency', 'N/A')}\n"
+        report += f"Intensity: {exercise.get('intensity', 'N/A')}\n"
+        report += "\nRecommended Exercises:\n"
+        for ex in exercise.get('recommended_exercises', []):
+            report += f"- {ex}\n"
+    
+    report += f"\n{'='*80}\n"
+    report += "DISCLAIMER: This report is for informational purposes only.\n"
+    report += "Please consult with qualified healthcare professionals for medical advice.\n"
+    report += f"{'='*80}\n"
+    
+    return report
+
+
+def display_recommendations(recommendations):
+    """
+    Display structured health recommendations in Streamlit
+    """
+    if not recommendations:
+        st.warning("Unable to generate recommendations at this time.")
+        return
+    
+    # Header with patient name and topic
+    st.markdown("---")
+    st.markdown(f"## 📋 Health Management Plan")
+    if recommendations.get('name'):
+        st.markdown(f"**Patient:** {recommendations.get('name')}")
+    st.markdown(f"**Condition:** {recommendations.get('topic', 'Health Management')}")
+    st.markdown("---")
+    
+    # Create tabs for better organization
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "🍽️ Diet Plan", 
+        "💊 Medications", 
+        "👨‍⚕️ Doctor Visit", 
+        "⚠️ Precautions",
+        "🏃 Exercise"
+    ])
+    
+    with tab1:
+        st.subheader("🍽️ Dietary Plan")
+        dietary = recommendations.get('dietary_plan', {})
+        
+        if dietary:
+            # Daily Nutritional Targets
+            st.markdown("### 📊 Daily Nutritional Targets")
+            
+            nutrition_cols = st.columns(4)
+            
+            with nutrition_cols[0]:
+                calories = dietary.get('daily_calories', 'Not specified')
+                st.metric("Calories", calories)
+                
+            with nutrition_cols[1]:
+                protein = dietary.get('daily_protein', 'Not specified')
+                st.metric("Protein", protein)
+                
+            with nutrition_cols[2]:
+                carbs = dietary.get('daily_carbohydrates', 'Not specified')
+                st.metric("Carbohydrates", carbs)
+                
+            with nutrition_cols[3]:
+                fats = dietary.get('daily_fats', 'Not specified')
+                st.metric("Healthy Fats", fats)
+            
+            # Additional nutritional metrics
+            st.markdown("---")
+            st.markdown("### 🔬 Key Nutritional Guidelines")
+            
+            nutrition_cols2 = st.columns(5)
+            
+            with nutrition_cols2[0]:
+                fiber = dietary.get('daily_fiber', 'Not specified')
+                st.metric("Fiber", fiber)
+                
+            with nutrition_cols2[1]:
+                sodium = dietary.get('daily_sodium', 'Not specified')
+                st.metric("Sodium (max)", sodium)
+                
+            with nutrition_cols2[2]:
+                sugar = dietary.get('daily_sugar', 'Not specified')
+                st.metric("Added Sugar (max)", sugar)
+                
+            with nutrition_cols2[3]:
+                cholesterol = dietary.get('daily_cholesterol', 'Not specified')
+                st.metric("Cholesterol (max)", cholesterol)
+                
+            with nutrition_cols2[4]:
+                water = dietary.get('hydration', 'Not specified')
+                st.metric("Water", water)
+            
+            # Macronutrient breakdown
+            st.markdown("---")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("### ✅ Foods to Eat:")
+                foods_to_eat = dietary.get('foods_to_eat', [])
+                if foods_to_eat:
+                    for food in foods_to_eat:
+                        st.markdown(f"• {food}")
+                else:
+                    st.info("No specific recommendations")
+            
+            with col2:
+                st.markdown("### ❌ Foods to Avoid:")
+                foods_to_avoid = dietary.get('foods_to_avoid', [])
+                if foods_to_avoid:
+                    for food in foods_to_avoid:
+                        st.markdown(f"• {food}")
+                else:
+                    st.info("No specific restrictions")
+            
+            # Detailed meal plan
+            st.markdown("---")
+            st.markdown("### 📅 Sample Meal Plan")
+            meal_plan = dietary.get('meal_plan', {})
+            if meal_plan:
+                meal_cols = st.columns(4)
+                meals = [
+                    ("🌅 Breakfast", meal_plan.get('breakfast', '')),
+                    ("☀️ Lunch", meal_plan.get('lunch', '')),
+                    ("🌆 Dinner", meal_plan.get('dinner', '')),
+                    ("🍎 Snacks", meal_plan.get('snacks', ''))
+                ]
+                
+                for col, (meal_name, meal_content) in zip(meal_cols, meals):
+                    with col:
+                        st.markdown(f"**{meal_name}**")
+                        st.write(meal_content if meal_content else "Not specified")
+            
+            # Vitamin and mineral recommendations
+            st.markdown("---")
+            st.markdown("### 💊 Essential Vitamins & Minerals")
+            
+            vitamins = dietary.get('vitamins_minerals', {})
+            if vitamins:
+                vit_cols = st.columns(3)
+                
+                with vit_cols[0]:
+                    st.markdown("**Key Vitamins:**")
+                    vit_dict = vitamins.get('vitamins', {})
+                    if vit_dict:
+                        for vit, amount in vit_dict.items():
+                            st.markdown(f"• {vit}: {amount}")
+                    else:
+                        st.write("Standard daily requirements")
+                
+                with vit_cols[1]:
+                    st.markdown("**Key Minerals:**")
+                    min_dict = vitamins.get('minerals', {})
+                    if min_dict:
+                        for mineral, amount in min_dict.items():
+                            st.markdown(f"• {mineral}: {amount}")
+                    else:
+                        st.write("Standard daily requirements")
+                
+                with vit_cols[2]:
+                    st.markdown("**Supplements (if needed):**")
+                    supplements = vitamins.get('supplements', [])
+                    if supplements:
+                        for supp in supplements:
+                            st.markdown(f"• {supp}")
+                    else:
+                        st.write("Consult your doctor")
+            
+            # Meal timing recommendations
+            st.markdown("---")
+            st.markdown("### ⏰ Meal Timing & Frequency")
+            timing = dietary.get('meal_timing', {})
+            if timing:
+                st.info(f"**Recommended eating schedule:** {timing.get('schedule', 'Eat regular meals every 3-4 hours')}")
+                st.write(f"**Best practices:** {timing.get('tips', 'Avoid eating 2-3 hours before bedtime')}")
+            else:
+                st.info("Eat balanced meals at regular intervals throughout the day")
+            
+            # Portion control guide
+            st.markdown("---")
+            st.markdown("### 🍛 Portion Control Guide")
+            portions = dietary.get('portion_sizes', {})
+            if portions:
+                portion_cols = st.columns(2)
+                with portion_cols[0]:
+                    st.markdown("**Recommended Portions:**")
+                    for food_group, portion in portions.items():
+                        st.markdown(f"• {food_group}: {portion}")
+                with portion_cols[1]:
+                    st.info("**Hand-based portion guide:**\n\n"
+                           "• Palm = Protein serving\n"
+                           "• Fist = Vegetable serving\n"
+                           "• Cupped hand = Carb serving\n"
+                           "• Thumb = Fat serving")
+            else:
+                st.info("Follow standard portion guidelines based on your age, gender, and activity level")
+    
+    with tab2:
+        st.subheader("💊 Medications")
+        medications = recommendations.get('medications', {})
+        
+        if medications:
+            # Prescription medications
+            prescription = medications.get('prescription_required', [])
+            if prescription:
+                st.markdown("### 🏥 Prescription Required")
+                for med in prescription:
+                    st.markdown(f"• {med}")
+            
+            # OTC medications
+            otc = medications.get('over_the_counter', [])
+            if otc:
+                st.markdown("### 🛒 Over-the-Counter Options")
+                for med in otc:
+                    st.markdown(f"• {med}")
+            
+            # Detailed medication information
+            st.markdown("---")
+            st.markdown("### 📝 Medication Details")
+            med_details = medications.get('medication_details', [])
+            
+            if med_details:
+                for med in med_details:
+                    with st.expander(f"💊 {med.get('name', 'Medication')}"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.markdown(f"**Dosage:** {med.get('dosage', 'N/A')}")
+                            st.markdown(f"**Frequency:** {med.get('frequency', 'N/A')}")
+                            st.markdown(f"**Duration:** {med.get('duration', 'N/A')}")
+                        
+                        with col2:
+                            st.markdown(f"**Approximate Cost:** {med.get('approximate_cost', 'N/A')}")
+                            
+                            generic_alt = med.get('generic_alternatives', [])
+                            if generic_alt:
+                                st.markdown("**Generic Alternatives:**")
+                                for alt in generic_alt:
+                                    st.markdown(f"• {alt}")
+            else:
+                st.info("Consult your doctor for specific medication recommendations")
+        else:
+            st.info("No medication information available. Please consult your healthcare provider.")
+    
+    with tab3:
+        st.subheader("👨‍⚕️ Doctor Visitation")
+        doctor = recommendations.get('doctor_visitation', {})
+        
+        if doctor:
+            # Urgency indicator
+            urgency = doctor.get('urgency', 'routine')
+            urgency_colors = {
+                'immediate': ('🔴', 'red', 'IMMEDIATE ATTENTION REQUIRED'),
+                'within 24 hours': ('🟠', 'orange', 'URGENT - Within 24 Hours'),
+                'within a week': ('🟡', 'gold', 'Schedule Within a Week'),
+                'routine': ('🟢', 'green', 'Routine Check-up')
+            }
+            
+            icon, color, message = urgency_colors.get(urgency.lower(), ('🔵', 'blue', urgency))
+            
+            st.markdown(f"### Urgency Level")
+            st.markdown(f"<h3 style='color:{color}'>{icon} {message}</h3>", unsafe_allow_html=True)
+            
+            st.markdown("---")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("### 🏥 Specialist Type")
+                specialist = doctor.get('specialist_type', 'General Practitioner')
+                st.info(specialist)
+                
+                st.markdown("### 📅 Follow-up Schedule")
+                followup = doctor.get('followup_schedule', doctor.get('follow_up_schedule', 'As needed'))
+                st.write(followup)
+            
+            with col2:
+                st.markdown("### 🔬 Recommended Tests")
+                tests = doctor.get('tests_recommended', [])
+                if tests:
+                    for test in tests:
+                        st.markdown(f"• {test}")
+                else:
+                    st.write("To be determined by physician")
+        else:
+            st.info("Consult with your healthcare provider for personalized medical guidance")
+    
+    with tab4:
+        st.subheader("⚠️ Precautions")
+        precautions = recommendations.get('precautions', {})
+        
+        if precautions:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Lifestyle changes
+                st.markdown("### ✅ Lifestyle Changes")
+                lifestyle = precautions.get('lifestyle_changes', [])
+                if lifestyle:
+                    for change in lifestyle:
+                        st.markdown(f"• {change}")
+                else:
+                    st.info("Maintain healthy lifestyle habits")
+                
+                # Activities to avoid
+                st.markdown("### 🚫 Activities to Avoid")
+                avoid = precautions.get('activities_to_avoid', [])
+                if avoid:
+                    for activity in avoid:
+                        st.markdown(f"• {activity}")
+                else:
+                    st.info("No specific restrictions")
+            
+            with col2:
+                # Warning signs
+                st.markdown("### ⚠️ Warning Signs")
+                warnings = precautions.get('warning_signs', [])
+                if warnings:
+                    for sign in warnings:
+                        st.warning(f"• {sign}")
+                else:
+                    st.info("Monitor general health")
+            
+            # Emergency symptoms
+            st.markdown("---")
+            emergency = precautions.get('emergency_symptoms', [])
+            if emergency:
+                st.markdown("### 🆘 Emergency Symptoms (Seek Immediate Help)")
+                st.error("If you experience any of these symptoms, call emergency services immediately:")
+                for symptom in emergency:
+                    st.markdown(f"• {symptom}")
+        else:
+            st.info("Follow general health precautions and consult your doctor")
+    
+    with tab5:
+        st.subheader("🏃 Exercise Recommendations")
+        exercise = recommendations.get('exercise_recommendations', {})
+        
+        if exercise:
+            # Exercise summary
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                duration = exercise.get('duration', 'N/A')
+                st.metric("Duration", duration)
+            
+            with col2:
+                frequency = exercise.get('frequency', 'N/A')
+                st.metric("Frequency", frequency)
+            
+            with col3:
+                intensity = exercise.get('intensity', 'N/A')
+                st.metric("Intensity", intensity)
+            
+            # Recommended exercises
+            st.markdown("---")
+            st.markdown("### 💪 Recommended Exercises")
+            exercises = exercise.get('recommended_exercises', [])
+            if exercises:
+                for i, ex in enumerate(exercises, 1):
+                    st.markdown(f"{i}. {ex}")
+            else:
+                st.info("Consult a fitness professional for personalized exercise plan")
+            
+            # Safety note
+            st.markdown("---")
+            st.info("⚠️ Always consult your doctor before starting a new exercise program, especially if you have existing health conditions.")
+        else:
+            st.info("Regular physical activity is important. Consult your doctor for personalized exercise recommendations.")
+    
+    # Download option - CORRECTLY INDENTED INSIDE THE FUNCTION
+    st.markdown("---")
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        # Create unique key using available data
+        patient_name = recommendations.get('name', 'patient')
+        topic = recommendations.get('topic', 'health')
+        download_key = f"download_btn_{patient_name.replace(' ', '_')}_{hash(str(topic))}"
+        
+        if st.button("📥 Download Full Report", use_container_width=True, key=download_key):
+            # Generate the text report
+            report_text = generate_text_report(recommendations)
+            
+            st.download_button(
+                label="📄 Download Text Report",
+                data=report_text,
+                file_name=f"health_report_{patient_name.replace(' ', '_')}_{datetime.datetime.now().strftime('%Y%m%d')}.txt",
+                mime="text/plain",
+                key=f"download_actual_{download_key}"
+            )
+
+
 def get_health_recommendations(disease_name, severity="moderate", patient_info={}):
     """Get tailored health recommendations using NVIDIA LLM"""
     
@@ -236,161 +613,385 @@ Please provide recommendations in the following JSON format:
     "name": "Patient Name",
     "topic": "{disease_name} Management",
     "dietary_plan": {{
-        "foods_to_eat": [],
-        "foods_to_avoid": [],
+        "foods_to_eat": ["list of recommended foods"],
+        "foods_to_avoid": ["list of foods to avoid"],
+        "daily_calories": "e.g., 1800-2000 kcal",
+        "daily_protein": "e.g., 60-80g",
+        "daily_carbohydrates": "e.g., 200-250g",
+        "daily_fats": "e.g., 50-70g",
+        "daily_fiber": "e.g., 25-30g",
+        "daily_sodium": "e.g., <2300mg",
+        "daily_sugar": "e.g., <25g added sugar",
+        "daily_cholesterol": "e.g., <300mg",
         "meal_plan": {{
-            "breakfast": "",
-            "lunch": "",
-            "dinner": "",
-            "snacks": ""
+            "breakfast": "specific breakfast suggestions",
+            "lunch": "specific lunch suggestions",
+            "dinner": "specific dinner suggestions",
+            "snacks": "healthy snack options"
         }},
-        "hydration": "specific water intake recommendation"
+        "hydration": "specific water intake recommendation",
+        "vitamins_minerals": {{
+            "vitamins": {{"Vitamin D": "600-800 IU"}},
+            "minerals": {{"Calcium": "1000mg"}},
+            "supplements": ["list any recommended supplements"]
+        }},
+        "meal_timing": {{
+            "schedule": "eating schedule",
+            "tips": "timing tips"
+        }},
+        "portion_sizes": {{
+            "Vegetables": "2-3 cups per day"
+        }}
     }},
     "medications": {{
-        "prescription_required": [],
-        "over_the_counter": [],
+        "prescription_required": ["list of prescription medications"],
+        "over_the_counter": ["list of OTC options"],
         "medication_details": [
             {{
                 "name": "medication name",
                 "dosage": "dosage info",
                 "frequency": "how often",
                 "duration": "how long",
-                "approximate_cost": "price range",
-                "generic_alternatives": []
+                "approximate_cost": "price range in USD",
+                "generic_alternatives": ["list of generic options"]
             }}
         ]
     }},
     "doctor_visitation": {{
         "urgency": "immediate/within 24 hours/within a week/routine",
         "specialist_type": "type of specialist needed",
-        "tests_recommended": [],
+        "tests_recommended": ["list of recommended tests"],
         "followup_schedule": "frequency of follow-ups"
     }},
     "precautions": {{
-        "lifestyle_changes": [],
-        "activities_to_avoid": [],
-        "warning_signs": [],
-        "emergency_symptoms": []
+        "lifestyle_changes": ["specific lifestyle modifications"],
+        "activities_to_avoid": ["activities to avoid"],
+        "warning_signs": ["symptoms to monitor"],
+        "emergency_symptoms": ["symptoms requiring immediate medical attention"]
     }},
     "exercise_recommendations": {{
-        "recommended_exercises": [],
-        "duration": "minutes per day",
-        "frequency": "days per week",
+        "recommended_exercises": ["list of suitable exercises"],
+        "duration": "e.g., 30 minutes per day",
+        "frequency": "e.g., 5 days per week",
         "intensity": "low/moderate/high"
     }}
 }}
 
-Provide accurate, evidence-based recommendations. Include specific medication names with approximate costs in USD."""
+CRITICAL: Return ONLY valid JSON. Do not include any text before or after the JSON object."""
 
     try:
         completion = client.chat.completions.create(
             model="writer/palmyra-med-70b",
             messages=[
-                {"role": "system", "content": "You are a medical AI assistant providing evidence-based health recommendations."},
+                {"role": "system", "content": "You are a medical AI assistant. You MUST return only valid JSON with no additional text."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.2,
             top_p=0.7,
-            max_tokens=1024,
+            max_tokens=2048,
             stream=True
         )
         
-        # Collect streamed response
         full_response = ""
         for chunk in completion:
             if chunk.choices[0].delta.content is not None:
                 full_response += chunk.choices[0].delta.content
         
-        # Parse JSON response
+        # Clean the response
+        full_response = full_response.strip()
+        if full_response.startswith("```json"):
+            full_response = full_response[7:]
+        if full_response.startswith("```"):
+            full_response = full_response[3:]
+        if full_response.endswith("```"):
+            full_response = full_response[:-3]
+        full_response = full_response.strip()
+        
         recommendations = json.loads(full_response)
         return recommendations
         
+    except json.JSONDecodeError as e:
+        st.error(f"Failed to parse recommendations. Error: {str(e)}")
+        return None
     except Exception as e:
         st.error(f"Error getting recommendations: {str(e)}")
         return None
 
-# Function to display health recommendations
-def display_recommendations(recommendations):
-    """
-    Display structured health recommendations in Streamlit
-    """
-    if not recommendations:
-        st.warning("Unable to generate recommendations at this time.")
-        return
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("📋 Topic")
-        st.write(recommendations.get('topic', 'Health Management'))
         
-        st.subheader("🍽️ Dietary Plan")
-        dietary = recommendations.get('dietary_plan', {})
-        if dietary:
-            st.write("**Foods to Eat:**")
-            for food in dietary.get('foods_to_eat', []):
-                st.write(f"• {food}")
-            
-            st.write("**Foods to Avoid:**")
-            for food in dietary.get('foods_to_avoid', []):
-                st.write(f"• {food}")
-            
-            st.write(f"**Hydration:** {dietary.get('hydration', 'Drink plenty of water')}")
-        
-        st.subheader("🏃 Exercise Recommendations")
-        exercise = recommendations.get('exercise_recommendations', {})
-        if exercise:
-            st.write(f"**Duration:** {exercise.get('duration', 'N/A')}")
-            st.write(f"**Frequency:** {exercise.get('frequency', 'N/A')}")
-            st.write(f"**Intensity:** {exercise.get('intensity', 'N/A')}")
-            for ex in exercise.get('recommended_exercises', []):
-                st.write(f"• {ex}")
-    
-    with col2:
-        st.subheader("💊 Medications")
-        medications = recommendations.get('medications', {})
-        if medications:
-            med_details = medications.get('medication_details', [])
-            for med in med_details:
-                with st.expander(f"{med.get('name', 'Medication')}"):
-                    st.write(f"**Dosage:** {med.get('dosage', 'N/A')}")
-                    st.write(f"**Frequency:** {med.get('frequency', 'N/A')}")
-                    st.write(f"**Duration:** {med.get('duration', 'N/A')}")
-                    st.write(f"**Approximate Cost:** {med.get('approximate_cost', 'N/A')}")
-                    if med.get('generic_alternatives'):
-                        st.write("**Generic Alternatives:**")
-                        for alt in med['generic_alternatives']:
-                            st.write(f"• {alt}")
-        
-        st.subheader("👨‍⚕️ Doctor Visitation")
-        doctor = recommendations.get('doctor_visitation', {})
-        if doctor:
-            urgency_color = {
-                'immediate': 'red',
-                'within 24 hours': 'orange',
-                'within a week': 'yellow',
-                'routine': 'green'
-            }.get(doctor.get('urgency', 'routine').lower(), 'blue')
-            
-            st.markdown(f"**Urgency:** <span style='color:{urgency_color}'>{doctor.get('urgency', 'N/A')}</span>", unsafe_allow_html=True)
-            st.write(f"**Specialist Type:** {doctor.get('specialist_type', 'General Practitioner')}")
-            st.write(f"**Follow-up Schedule:** {doctor.get('follow_up_schedule', 'As needed')}")
-        
-        st.subheader("⚠️ Precautions")
-        precautions = recommendations.get('precautions', {})
-        if precautions:
-            warning_signs = precautions.get('warning_signs', [])
-            if warning_signs:
-                st.write("**Warning Signs:**")
-                for sign in warning_signs:
-                    st.write(f"• {sign}")
-            
-            emergency = precautions.get('emergency_symptoms', [])
-            if emergency:
-                st.error("**Emergency Symptoms (Seek immediate help):**")
-                for symptom in emergency:
-                    st.write(f"• {symptom}")
+def get_health_tips_from_llm(disease_name, severity="moderate"):
+    """Get disease-specific health tips dynamically from NVIDIA LLM"""
+    prompt = f"""You are a medical AI assistant. Provide comprehensive, evidence-based health tips for managing {disease_name} (severity: {severity}).
 
+Please provide tips in the following JSON format:
+{{
+    "disease_name": "{disease_name}",
+    "daily_management_tips": ["Provide 8-10 specific, actionable daily management tips"],
+    "prevention_tips": ["Provide 6-8 prevention or risk reduction strategies"],
+    "warning_signs": ["List 6-8 warning signs that require medical attention"],
+    "quick_reminders": ["Provide 5-6 short, memorable one-sentence tips"],
+    "do_and_dont": {{
+        "do": ["List 5 things patients SHOULD do"],
+        "dont": ["List 5 things patients SHOULD NOT do"]
+    }},
+    "lifestyle_modifications": ["Provide 5-7 specific lifestyle changes"]
+}}
+
+CRITICAL: Return ONLY valid JSON. Do not include any text before or after the JSON object."""
+
+    try:
+        completion = client.chat.completions.create(
+            model="writer/palmyra-med-70b",
+            messages=[
+                {"role": "system", "content": "You are a medical AI assistant. You MUST return only valid JSON with no additional text."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            top_p=0.7,
+            max_tokens=1536,
+            stream=True
+        )
+        
+        full_response = ""
+        for chunk in completion:
+            if chunk.choices[0].delta.content is not None:
+                full_response += chunk.choices[0].delta.content
+        
+        # Clean the response
+        full_response = full_response.strip()
+        if full_response.startswith("```json"):
+            full_response = full_response[7:]
+        if full_response.startswith("```"):
+            full_response = full_response[3:]
+        if full_response.endswith("```"):
+            full_response = full_response[:-3]
+        full_response = full_response.strip()
+        
+        tips = json.loads(full_response)
+        return tips
+        
+    except json.JSONDecodeError as e:
+        st.error(f"Failed to parse health tips. Error: {str(e)}")
+        return None
+    except Exception as e:
+        st.error(f"Error getting health tips from LLM: {str(e)}")
+        return None
+
+
+def get_general_health_tips_from_llm():
+    """Get general health and wellness tips from NVIDIA LLM"""
+    prompt = """You are a medical AI assistant. Provide comprehensive general health and wellness tips for maintaining overall health.
+
+Please provide tips in the following JSON format organized by categories:
+{
+    "nutrition": ["Provide 8-10 evidence-based nutrition tips"],
+    "physical_activity": ["Provide 8-10 exercise and movement tips"],
+    "sleep_rest": ["Provide 8-10 sleep hygiene tips"],
+    "mental_health": ["Provide 8-10 mental wellness tips"],
+    "preventive_care": ["Provide 8-10 preventive health tips"],
+    "lifestyle_habits": ["Provide 8-10 healthy lifestyle tips"],
+    "hydration": ["Provide 5-6 hydration tips"],
+    "immune_health": ["Provide 6-8 immune system boosting tips"]
+}
+
+CRITICAL: Return ONLY valid JSON. Do not include any text before or after the JSON object."""
+
+    try:
+        completion = client.chat.completions.create(
+            model="writer/palmyra-med-70b",
+            messages=[
+                {"role": "system", "content": "You are a medical AI assistant. You MUST return only valid JSON with no additional text."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            top_p=0.7,
+            max_tokens=2048,
+            stream=True
+        )
+        
+        full_response = ""
+        for chunk in completion:
+            if chunk.choices[0].delta.content is not None:
+                full_response += chunk.choices[0].delta.content
+        
+        # Clean the response
+        full_response = full_response.strip()
+        if full_response.startswith("```json"):
+            full_response = full_response[7:]
+        if full_response.startswith("```"):
+            full_response = full_response[3:]
+        if full_response.endswith("```"):
+            full_response = full_response[:-3]
+        full_response = full_response.strip()
+        
+        tips = json.loads(full_response)
+        return tips
+        
+    except json.JSONDecodeError as e:
+        st.error(f"Failed to parse general health tips. Error: {str(e)}")
+        return None
+    except Exception as e:
+        st.error(f"Error getting general health tips: {str(e)}")
+        return None
+
+
+def display_health_tips_dynamic(disease_name=None, severity=None):
+    """Display dynamically generated health tips from LLM"""
+    st.markdown("---")
+    st.markdown("## 💡 Health Tips & Daily Guidance")
+    
+    if disease_name:
+        tip_tabs = st.tabs(["🎯 Disease-Specific Tips", "📋 General Health Tips", "⚠️ Warning Signs"])
+        
+        with tip_tabs[0]:
+            st.subheader(f"Personalized Tips for {disease_name}")
+            
+            with st.spinner("Generating personalized health tips from AI..."):
+                tips = get_health_tips_from_llm(disease_name, severity)
+                
+                if tips:
+                    st.markdown("### 📅 Daily Management")
+                    daily_tips = tips.get('daily_management_tips', [])
+                    if daily_tips:
+                        for i, tip in enumerate(daily_tips, 1):
+                            st.info(f"**Tip {i}:** {tip}")
+                    
+                    st.markdown("---")
+                    st.markdown("### ✅ Do's and ❌ Don'ts")
+                    do_dont = tips.get('do_and_dont', {})
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown("#### ✅ Things to DO")
+                        for do in do_dont.get('do', []):
+                            st.success(f"✓ {do}")
+                    with col2:
+                        st.markdown("#### ❌ Things to AVOID")
+                        for dont in do_dont.get('dont', []):
+                            st.error(f"✗ {dont}")
+                    
+                    st.markdown("---")
+                    st.markdown("### 🛡️ Prevention & Long-term Care")
+                    for tip in tips.get('prevention_tips', []):
+                        st.success(f"• {tip}")
+                    
+                    st.markdown("---")
+                    st.markdown("### 🔄 Lifestyle Modifications")
+                    lifestyle = tips.get('lifestyle_modifications', [])
+                    cols = st.columns(2)
+                    for idx, mod in enumerate(lifestyle):
+                        with cols[idx % 2]:
+                            st.info(f"• {mod}")
+                    
+                    st.markdown("---")
+                    st.markdown("### ⚡ Quick Daily Reminders")
+                    for tip in tips.get('quick_reminders', []):
+                        st.markdown(f"⚡ {tip}")
+                else:
+                    # Fallback if LLM fails
+                    st.warning("Unable to generate personalized tips at this time. Please ensure API is configured correctly.")
+                    st.info("""
+                    **General Health Recommendations:**
+                    - Follow prescribed medications consistently
+                    - Maintain regular medical checkups
+                    - Adopt a balanced, nutritious diet
+                    - Stay physically active within your capabilities
+                    - Get adequate sleep (7-9 hours for adults)
+                    - Manage stress through relaxation techniques
+                    - Avoid tobacco and limit alcohol consumption
+                    - Stay well-hydrated throughout the day
+                    - Monitor your symptoms and keep a health diary
+                    - Maintain open communication with your healthcare team
+                    """)
+        
+        with tip_tabs[1]:
+            st.subheader("General Health & Wellness")
+            with st.spinner("Loading general health tips from AI..."):
+                general_tips = get_general_health_tips_from_llm()
+                if general_tips:
+                    categories = {
+                        "nutrition": "🍎 Nutrition & Diet",
+                        "physical_activity": "🏃 Physical Activity",
+                        "sleep_rest": "😴 Sleep & Rest",
+                        "mental_health": "🧘 Mental Health",
+                        "preventive_care": "💊 Preventive Care",
+                        "lifestyle_habits": "🌟 Lifestyle Habits",
+                        "hydration": "💧 Hydration",
+                        "immune_health": "🛡️ Immune Health"
+                    }
+                    for key, title in categories.items():
+                        with st.expander(title):
+                            for tip in general_tips.get(key, []):
+                                st.markdown(f"• {tip}")
+                else:
+                    st.warning("Unable to load general health tips. Using offline recommendations.")
+                    with st.expander("🍎 Nutrition & Diet"):
+                        st.markdown("""
+                        - Eat a variety of colorful fruits and vegetables daily
+                        - Choose whole grains over refined grains
+                        - Include lean proteins in your diet
+                        - Limit processed foods and added sugars
+                        - Practice portion control
+                        - Read nutrition labels carefully
+                        - Plan meals ahead to make healthier choices
+                        - Eat mindfully without distractions
+                        """)
+                    
+                    with st.expander("🏃 Physical Activity"):
+                        st.markdown("""
+                        - Aim for 150 minutes of moderate activity weekly
+                        - Include both cardio and strength training
+                        - Start slowly and gradually increase intensity
+                        - Find activities you enjoy for sustainability
+                        - Take breaks from sitting every hour
+                        - Stretch regularly to maintain flexibility
+                        - Exercise with friends for motivation
+                        - Listen to your body and rest when needed
+                        """)
+        
+        with tip_tabs[2]:
+            st.subheader("⚠️ Warning Signs to Monitor")
+            if tips:
+                warning_signs = tips.get('warning_signs', [])
+                if warning_signs:
+                    for sign in warning_signs:
+                        st.warning(f"• {sign}")
+                else:
+                    st.info("Consult your healthcare provider if you experience any concerning symptoms.")
+            else:
+                st.warning("""
+                **General Warning Signs (Seek Medical Attention):**
+                - Severe or persistent pain
+                - Sudden changes in symptoms
+                - High fever (>103°F/39.4°C)
+                - Difficulty breathing
+                - Chest pain or pressure
+                - Severe headache
+                - Sudden confusion or disorientation
+                - Uncontrolled bleeding
+                - Severe allergic reactions
+                - Loss of consciousness
+                """)
+    else:
+        # Display general health tips if no specific disease
+        st.info("Select a specific health condition for personalized tips.")
+        with st.spinner("Loading general wellness tips..."):
+            general_tips = get_general_health_tips_from_llm()
+            if general_tips:
+                categories = {
+                    "nutrition": "🍎 Nutrition & Diet",
+                    "physical_activity": "🏃 Physical Activity",
+                    "sleep_rest": "😴 Sleep & Rest",
+                    "mental_health": "🧘 Mental Health",
+                    "preventive_care": "💊 Preventive Care",
+                    "lifestyle_habits": "🌟 Lifestyle Habits",
+                    "hydration": "💧 Hydration",
+                    "immune_health": "🛡️ Immune Health"
+                }
+                for key, title in categories.items():
+                    with st.expander(title):
+                        for tip in general_tips.get(key, []):
+                            st.markdown(f"• {tip}")
+                            
 # Health Tips
 health_tips = [
     "Drink at least 8 glasses of water daily.",
@@ -618,7 +1219,7 @@ if selected == 'AI Health Assistant':
                     
                     # Display recommendations
                     display_recommendations(recommendations)
-                    
+                    display_health_tips_dynamic(disease, severity.lower())
                     # Option to download recommendations
                     if st.button("📥 Download Recommendations as PDF"):
                         st.info("PDF download feature coming soon!")
@@ -761,6 +1362,7 @@ if selected == 'AI Health Assistant':
                 recommendations = get_health_recommendations(disease_name, severity, patient_info)
                 if recommendations:
                     display_recommendations(recommendations)
+                    display_health_tips_dynamic(severity.lower())
 
 # Diabetes Prediction
 if selected == 'Diabetes Prediction':
@@ -794,13 +1396,9 @@ if selected == 'Diabetes Prediction':
             
             if diabetes_prediction[0] == 1:
                 st.error(f"{name}, high risk of Type 2 Diabetes detected!")
-                image = Image.open('positive.jpg')
-                st.image(image, caption='High Risk')
                 severity = "high"
             else:
                 st.success(f"{name}, low diabetes risk. Continue healthy lifestyle!")
-                image = Image.open('negative.jpg')
-                st.image(image, caption='Low Risk')
                 severity = "low"
             
             # Get AI recommendations
@@ -817,8 +1415,11 @@ if selected == 'Diabetes Prediction':
                     recommendations = get_health_recommendations("Type 2 Diabetes", severity, patient_info)
                     if recommendations:
                         display_recommendations(recommendations)
-        except:
-            st.error("Error in prediction. Please check your inputs.")
+                        display_health_tips_dynamic("Type 2 Diabetes", severity.lower())
+
+        except Exception as e:
+            st.error(f"Error in prediction: {str(e)}")
+            st.exception(e)  
 
 # Heart Disease Prediction
 if selected == 'Heart Disease Prediction':
@@ -871,8 +1472,6 @@ if selected == 'Heart Disease Prediction':
                 severity = "high"
             else:
                 st.success(f"{name}, low heart disease risk. Maintain a healthy lifestyle!")
-                image = Image.open('negative.jpg')
-                st.image(image, caption='Low Risk')
                 severity = "low"
             
             # Get AI recommendations
@@ -889,6 +1488,8 @@ if selected == 'Heart Disease Prediction':
                     recommendations = get_health_recommendations("Heart Disease", severity, patient_info)
                     if recommendations:
                         display_recommendations(recommendations)
+                        display_health_tips_dynamic("Heart Disease", severity.lower())
+
         except:
             st.error("Error in prediction. Please check your inputs.")
 
@@ -951,8 +1552,6 @@ if selected == 'Parkinsons Prediction':
                 severity = "moderate"
             else:
                 st.success(f"{name}, no significant Parkinson's indicators detected.")
-                image = Image.open('negative.jpg')
-                st.image(image, caption='Negative')
                 severity = "low"
             
             # Get AI recommendations
@@ -966,6 +1565,8 @@ if selected == 'Parkinsons Prediction':
                     recommendations = get_health_recommendations("Parkinson's Disease", severity, patient_info)
                     if recommendations:
                         display_recommendations(recommendations)
+                        display_health_tips_dynamic("Parkinson's Disease", severity.lower())
+
         except:
             st.error("Error in prediction. Please ensure all vocal parameters are entered.")
 
@@ -1027,13 +1628,9 @@ if selected == 'Lung Cancer Prediction':
             
             if lung_prediction[0] == 1:
                 st.error(f"{name}, high lung cancer risk! Immediate medical consultation and screening recommended.")
-                image = Image.open('positive.jpg')
-                st.image(image, caption='High Risk')
                 severity = "high"
             else:
                 st.success(f"{name}, low lung cancer risk. Continue healthy habits!")
-                image = Image.open('negative.jpg')
-                st.image(image, caption='Low Risk')
                 severity = "low"
             
             # Get AI recommendations
@@ -1053,6 +1650,8 @@ if selected == 'Lung Cancer Prediction':
                     recommendations = get_health_recommendations("Lung Cancer", severity, patient_info)
                     if recommendations:
                         display_recommendations(recommendations)
+                        display_health_tips_dynamic("Lung Cancer", severity.lower())
+
         except:
             st.error("Error in prediction. Please check your inputs.")
 
@@ -1130,8 +1729,6 @@ if selected == 'Breast Cancer Prediction':
                 severity = "severe"
             else:
                 st.success(f"{name}, benign tumor characteristics. Continue regular screening.")
-                image = Image.open('negative.jpg')
-                st.image(image, caption='Benign')
                 severity = "low"
             
             # Get AI recommendations
@@ -1145,6 +1742,8 @@ if selected == 'Breast Cancer Prediction':
                     recommendations = get_health_recommendations("Breast Cancer", severity, patient_info)
                     if recommendations:
                         display_recommendations(recommendations)
+                        display_health_tips_dynamic("Breast Cancer", severity.lower())
+
         except:
             st.error("Error in prediction. Please ensure all measurements are entered.")
 
@@ -1222,8 +1821,6 @@ if selected == 'Kidney Disease Prediction':
                 severity = "high"
             else:
                 st.success(f"{name}, no kidney disease detected. Maintain kidney health!")
-                image = Image.open('negative.jpg')
-                st.image(image, caption='Normal')
                 severity = "low"
 
             if name:
@@ -1241,6 +1838,8 @@ if selected == 'Kidney Disease Prediction':
                     recommendations = get_health_recommendations("Chronic Kidney Disease", severity, patient_info)
                     if recommendations:
                         display_recommendations(recommendations)
+                        display_health_tips_dynamic("Chronic Kidney Disease", severity.lower())
+
 
         except Exception as e:
             st.error(f"Error in prediction: {str(e)}")
@@ -1287,8 +1886,6 @@ if selected == 'Liver Prediction':
                 severity = "high"
             else:
                 st.success(f"{name}, liver function appears normal. Maintain healthy habits!")
-                image = Image.open('negative.jpg')
-                st.image(image, caption='Normal')
                 severity = "low"
             
             # Get AI recommendations
@@ -1305,6 +1902,7 @@ if selected == 'Liver Prediction':
                     recommendations = get_health_recommendations("Liver Disease", severity, patient_info)
                     if recommendations:
                         display_recommendations(recommendations)
+                        display_health_tips_dynamic("Liver Disease", severity.lower())
         except:
             st.error("Error in prediction. Please check all inputs.")
 
@@ -1351,8 +1949,6 @@ if selected == 'Hepatitis Prediction':
                 severity = "high"
             else:
                 st.success(f"{name}, no hepatitis indicators detected.")
-                image = Image.open('negative.jpg')
-                st.image(image, caption='Normal')
                 severity = "low"
             
             # Get AI recommendations
@@ -1366,9 +1962,11 @@ if selected == 'Hepatitis Prediction':
                         "bilirubin": bil
                     }
                     
-                    recommendations = get_health_recommendations("Hepatitis C", severity, patient_info)
+                    recommendations = get_health_recommendations("Hepatitis", severity, patient_info)
                     if recommendations:
                         display_recommendations(recommendations)
+                        display_health_tips_dynamic("Hepatitis", severity.lower())
+
         except:
             st.error("Error in prediction. Please check all inputs.")
 
@@ -1446,6 +2044,8 @@ if selected == '🔍 General Disease Prediction':
                     recommendations = get_health_recommendations("General Symptoms", "moderate", patient_info)
                     if recommendations:
                         display_recommendations(recommendations)
+                        display_health_tips_dynamic(selected_symptoms,severity.lower())
+
         except:
             st.error("Please select at least one symptom.")
 
@@ -1855,6 +2455,8 @@ if selected == 'Alzheimers Prediction':
             recommendations = get_health_recommendations("Alzheimer's Disease", "early stage", patient_info)
             if recommendations:
                 display_recommendations(recommendations)
+                display_health_tips_dynamic("Alzheimer's", severity.lower())
+
 
 # Epilepsy Prediction
 # Load or import your epilepsy_model here (from joblib, pickle, etc.)
@@ -1936,6 +2538,8 @@ if selected == 'Epilepsy Prediction':
                         recommendations = get_health_recommendations("Epilepsy", risk_label.lower(), patient_info)
                         if recommendations:
                             display_recommendations(recommendations)
+                            display_health_tips_dynamic("Epilepsy", severity.lower())
+
         else:
             st.warning("Please upload your EEG data CSV file to proceed with prediction.")
 
@@ -2193,6 +2797,8 @@ if selected == 'HIV/AIDS Prediction':
                     recommendations = get_health_recommendations("HIV Prevention", severity, patient_info)
                     if recommendations:
                         display_recommendations(recommendations)
+                        display_health_tips_dynamic("HIV", severity.lower())
+
         
         except Exception as e:
             st.error(f"Error in risk assessment: {str(e)}")
@@ -2273,6 +2879,8 @@ if selected == 'Malaria Prediction':
                 recommendations = get_health_recommendations("Malaria", severity, patient_info)
                 if recommendations:
                     display_recommendations(recommendations)
+                    display_health_tips_dynamic("Malaria", severity.lower())
+
                     
         except:
             st.warning("Malaria prediction model not available. Please ensure model file exists.")
@@ -2395,6 +3003,8 @@ if selected == 'Colorectal Cancer Prediction':
                 recommendations = get_health_recommendations("Colorectal Cancer", severity, patient_info)
                 if recommendations:
                     display_recommendations(recommendations)
+                    display_health_tips_dynamic("Colorectal Cancer", severity.lower())
+
                     
         except Exception as e:
             st.error(f"Error in assessment: {str(e)}")
@@ -2512,6 +3122,8 @@ if selected == 'Prostate Cancer Prediction':
                 recommendations = get_health_recommendations("Prostate Cancer", severity, patient_info)
                 if recommendations:
                     display_recommendations(recommendations)
+                    display_health_tips_dynamic("Prostate Cancer", severity.lower())
+
                     
         except Exception as e:
             st.error(f"Error in assessment: {str(e)}")
@@ -2633,6 +3245,8 @@ if selected == 'Cervical Cancer Prediction':
                 recommendations = get_health_recommendations("Cervical Cancer Prevention", severity, patient_info)
                 if recommendations:
                     display_recommendations(recommendations)
+                    display_health_tips_dynamic("Cervical Cancer", severity.lower())
+
 
         except Exception as e:
             st.error(f"Error in assessment: {str(e)}")
@@ -2753,6 +3367,8 @@ if selected == 'Asthma Prediction':
                 recommendations = get_health_recommendations("Asthma", severity.lower(), patient_info)
                 if recommendations:
                     display_recommendations(recommendations)
+                    display_health_tips_dynamic("Asthma", severity.lower())
+
 
         except Exception as e:
             st.error(f"Error in assessment: {str(e)}")
@@ -2882,6 +3498,8 @@ if selected == 'COPD Prediction':
                     recommendations = get_health_recommendations("COPD", stage.split()[0].lower(), patient_info)
                     if recommendations:
                         display_recommendations(recommendations)
+                        display_health_tips_dynamic("COPD", severity.lower())
+
 
         except Exception as e:
             st.error(f"Error in COPD prediction: {str(e)}")
@@ -2973,6 +3591,8 @@ if selected == 'Pneumonia Prediction':
                 recommendations = get_health_recommendations("Pneumonia", severity, patient_info)
                 if recommendations:
                     display_recommendations(recommendations)
+                    display_health_tips_dynamic("Pneumonia", severity.lower())
+
 
 # Migraine Prediction
 if selected == 'Migraine Prediction':
@@ -3065,6 +3685,8 @@ if selected == 'Migraine Prediction':
                 recommendations = get_health_recommendations("Migraine", severity, patient_info)
                 if recommendations:
                     display_recommendations(recommendations)
+                    display_health_tips_dynamic("Migraine", severity.lower())
+
 
 # HIV/AIDS Prediction
 if selected == 'HIV/AIDS Prediction':
@@ -3180,6 +3802,8 @@ if selected == 'HIV/AIDS Prediction':
                 recommendations = get_health_recommendations("HIV Prevention", severity, patient_info)
                 if recommendations:
                     display_recommendations(recommendations)
+                    display_health_tips_dynamic("HIV", severity.lower())
+
 
 # Obesity Prediction
 if selected == 'Obesity Prediction':
@@ -3394,3 +4018,5 @@ if selected == 'Obesity Prediction':
                 recommendations = get_health_recommendations(disease_name, severity, patient_info)
                 if recommendations:
                     display_recommendations(recommendations)
+                    display_health_tips_dynamic("Obesity", severity.lower())
+
